@@ -57,7 +57,12 @@ const BASE_DEFAULT_BACKUP_ROOT = process.env.FIRESTORE_BACKUP_DIR || (
 async function getActiveBackupDirectory() {
   const settings = await getAppSettings();
   if (settings.backupDirectory && typeof settings.backupDirectory === 'string' && settings.backupDirectory.trim()) {
-    return path.resolve(settings.backupDirectory.trim());
+    const dir = settings.backupDirectory.trim();
+    // On Linux (Render), ignore Windows drive paths (C:\...) to avoid relative prefixing
+    if (process.platform !== 'win32' && /^[a-zA-Z]:[/\\]/.test(dir)) {
+      return BASE_DEFAULT_BACKUP_ROOT;
+    }
+    return path.resolve(dir);
   }
   return BASE_DEFAULT_BACKUP_ROOT;
 }
@@ -337,6 +342,12 @@ app.post('/api/settings', async (req, res) => {
     const { backupDirectory } = req.body;
     if (!backupDirectory || typeof backupDirectory !== 'string' || !backupDirectory.trim()) {
       return res.status(400).json({ error: 'Please provide a valid folder path.' });
+    }
+
+    if (process.platform !== 'win32' && /^[a-zA-Z]:[/\\]/.test(backupDirectory.trim())) {
+      return res.status(400).json({
+        error: `Cannot set a Windows local path ('${backupDirectory.trim()}') on a Linux cloud container (Render). Remote cloud servers cannot write directly to your laptop's C: drive across the internet. To save directly to your laptop's Desktop, run the application locally on your computer at http://localhost:3000, or use the 'Download to PC' / 'Select Backup from Laptop' buttons.`
+      });
     }
 
     const resolved = path.resolve(backupDirectory.trim());
