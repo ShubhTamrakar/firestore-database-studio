@@ -1,0 +1,17 @@
+{
+  "name": "firestore-backup-restore",
+  "version": "1.0.0",
+  "description": "Production-grade Firestore backup, restore, and disaster recovery utility",
+  "main": "src/cli.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "cli": "node src/cli.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.3.0",
+    "firebase-admin": "^13.1.0",
+    "googleapis": "^144.0.0"
+  }
+}

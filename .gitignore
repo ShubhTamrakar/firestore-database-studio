@@ -1,0 +1,20 @@
+# Credentials & Secrets (CRITICAL)
+*.json
+!package.json
+!package-lock.json
+*.key
+*.pem
+.env
+.env.*
+
+# Node modules & logs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Backups & Ledgers (Local data)
+Firestore_DR_Backups/
+ledgers/
+*.sha256
+*.jsonl

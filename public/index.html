@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firestore Live Database Studio &amp; Backup</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-background"></div>
+
+  <div class="app-container">
+    <!-- Top Bar with Project Switcher -->
+    <header class="top-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <ellipse cx="12" cy="18" rx="8" ry="2.6" fill="#1e293b" stroke="#64748b" stroke-width="1.2"/>
+            <path d="M4 18v2.5c0 1.44 3.58 2.6 8 2.6s8-1.16 8-2.6V18" stroke="#64748b" stroke-width="1.2" fill="none"/>
+            <path d="M12 2c1.2 2.3 3.5 3.8 4.2 6.2.8 2.5-.2 5-2.2 6.5-1.2.9-3 .9-4-.2-1.2-1.3-.8-2.9.2-4.1.8-.9 1.6-1.6 1.8-3 .1-.8-.2-1.8-.8-2.5-.4.9-.8 1.7-1.5 2.3-1.5 1.4-2.5 3.2-2.2 5.3.3 2.3 2 4.1 4.5 4.7 3.2.7 6.5-.7 7.6-3.4.9-2.3.4-4.8-.9-6.8-1.5-2.3-3.5-3.6-5-5z" fill="#f59e0b"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Firestore Database Studio</h1>
+          <span class="brand-subtitle">Real Live Database Viewer, Multi-Format Backup & Restore</span>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <!-- Storage Folder Quick Bar -->
+        <div class="storage-folder-bar" title="Current backup & restore folder on this computer">
+          <span class="storage-icon">📁</span>
+          <div class="storage-info">
+            <span class="storage-label">Storage Folder:</span>
+            <span class="storage-path" id="global-storage-path" title="Click to change folder">Loading...</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" type="button" onclick="openStorageSettingsModal()">
+            Change Folder
+          </button>
+        </div>
+
+        <!-- Quick Database Switcher -->
+        <div class="database-selector-bar">
+          <label for="global-project-select">Active Database:</label>
+          <select id="global-project-select" onchange="onGlobalProjectChange()">
+            <option value="">-- No Database Connected --</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="switchTab('manage-projects')">
+            + Connect Database
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Navigation Tabs -->
+    <nav class="main-tabs">
+      <button class="tab-btn active" id="tab-view-btn" onclick="switchTab('view')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        1. View Live Database
+      </button>
+      <button class="tab-btn" id="tab-backup-btn" onclick="switchTab('backup')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        2. Create Backup
+      </button>
+      <button class="tab-btn" id="tab-vault-btn" onclick="switchTab('vault')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        3. Saved Backups
+      </button>
+      <button class="tab-btn" id="tab-restore-btn" onclick="switchTab('restore')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        4. Restore Database
+      </button>
+      <button class="tab-btn" id="tab-manage-projects-btn" onclick="switchTab('manage-projects')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7.5" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+        Connect Databases
+      </button>
+    </nav>
+
+    <!-- TAB 1: VIEW LIVE DATABASE -->
+    <section class="tab-content active" id="tab-view">
+      <!-- State A: When No Database is Connected Yet -->
+      <div class="card glass-card" id="view-empty-connect-state" style="display: none; text-align: center; padding: 48px 24px;">
+        <div style="font-size: 3rem; margin-bottom: 14px;">🔌</div>
+        <h2 style="margin-bottom: 8px;">No Live Database Connected</h2>
+        <p class="section-desc" style="max-width: 520px; margin: 0 auto 24px;">
+          To view your real collections, documents, and fields, connect your Firebase project by providing your Service Account Key.
+        </p>
+        <button class="btn btn-primary" onclick="switchTab('manage-projects')">
+          Connect Your Firebase Project Now
+        </button>
+      </div>
+
+      <!-- State B: Connected Live Database View -->
+      <div id="view-live-connected-state" style="display: none;">
+        <!-- Database Header Bar -->
+        <div class="schema-architecture-card card-sub" style="margin-bottom: 20px;">
+          <div class="schema-arch-header">
+            <div>
+              <h3 style="color: #fff; font-size: 1.05rem;">
+                <span class="status-dot-inline"></span>
+                Connected Live Database: <span id="schema-db-id" class="highlight-text">...</span>
+              </h3>
+              <p class="section-desc">Live connection established. Querying directly from your real Google Firebase Firestore.</p>
+            </div>
+            <div class="arch-stats">
+              <span class="stat-pill"><strong id="stat-coll-count">0</strong> Collections</span>
+              <span class="stat-pill"><strong id="stat-doc-count">0</strong> Documents Loaded</span>
+              <button class="btn btn-secondary btn-sm" onclick="loadLiveDatabaseView()">Refresh Live Data</button>
+            </div>
+          </div>
+
+          <div class="schema-chips-container" id="schema-chips">
+            <!-- Chips rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- 3-Column Firestore Console Layout -->
+        <div class="firestore-console-wrapper">
+          <!-- Breadcrumbs bar -->
+          <div class="firestore-breadcrumbs" id="firestore-breadcrumb-bar">
+            <span class="bc-home" onclick="reloadTopLevelConsole()">🏠</span>
+            <span class="bc-sep">&gt;</span>
+            <span class="bc-collection" id="bc-collection">...</span>
+            <span class="bc-sep">&gt;</span>
+            <span class="bc-doc" id="bc-doc">...</span>
+          </div>
+
+          <!-- Sliding Multi-Column Layout Matching Google Firebase Console -->
+          <div class="firestore-columns-grid" id="firestore-columns-container">
+            <!-- Column 1: Root (default) collections (Hides when drilled into subcollection) -->
+            <div class="fs-column" id="col-root-collections">
+              <div class="fs-column-header">
+                <div class="fs-col-title-wrap">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                  <span class="fs-col-title">(default)</span>
+                  <span class="fs-col-info-icon" title="Default database root">ⓘ</span>
+                </div>
+              </div>
+              <div class="fs-col-action-bar">
+                <button class="fs-action-btn-inline" type="button" onclick="alert('Viewing live Firestore database. To create new collections, use Firebase Console or Admin SDK.')">
+                  <span class="fs-plus-sym">+</span> Start collection
+                </button>
+              </div>
+              <div class="fs-items-list" id="fs-collections-list">
+                <!-- Populated with real collections -->
+              </div>
+            </div>
+
+            <!-- Column 2: Parent Collection Documents (e.g. users) -->
+            <div class="fs-column" id="col-parent-documents">
+              <div class="fs-column-header">
+                <div class="fs-col-title-wrap">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <span class="fs-col-title" id="fs-active-coll-name">Select Collection</span>
+                </div>
+                <div class="fs-header-icons">
+                  <span title="Filter documents">≡</span>
+                  <span title="Options">⋮</span>
+                </div>
+              </div>
+              <div class="fs-col-action-bar">
+                <button class="fs-action-btn-inline" type="button" onclick="alert('Viewing live Firestore database. To add documents, use Firebase Console or Admin SDK.')">
+                  <span class="fs-plus-sym">+</span> Add document
+                </button>
+              </div>
+              <div class="fs-items-list" id="fs-docs-list">
+                <!-- Populated with real documents -->
+              </div>
+            </div>
+
+            <!-- Column 3: Parent Document (Subcollections + Fields) (e.g. 4NC0fIQwZ2QALTnxbXFw0OEe4ZE3) -->
+            <div class="fs-column fs-column-fields" id="col-parent-doc-details">
+              <div class="fs-column-header">
+                <div class="fs-col-title-wrap">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                  <span class="fs-col-title" id="fs-active-doc-name">Select Document</span>
+                </div>
+                <div class="fs-header-icons">
+                  <span title="Options">⋮</span>
+                </div>
+              </div>
+              <div class="fs-doc-details-scroll" id="fs-fields-container">
+                <!-- Populated with subcollections list and fields -->
+              </div>
+            </div>
+
+            <!-- Column 4: Subcollection Documents (e.g. settings -> default) [Hidden in root mode, shown in subcoll mode] -->
+            <div class="fs-column fs-column-subcoll" id="col-subcoll-docs" style="display: none;">
+              <div class="fs-column-header">
+                <div class="fs-col-title-wrap">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  <span class="fs-col-title" id="fs-subcoll-name">settings</span>
+                </div>
+                <div class="fs-header-icons">
+                  <span title="Filter">≡</span>
+                  <span title="Close subcollection view" style="cursor: pointer; padding: 0 4px;" onclick="exitSubcollectionMode()">✕</span>
+                </div>
+              </div>
+              <div class="fs-col-action-bar">
+                <button class="fs-action-btn-inline" type="button" onclick="alert('Viewing live Firestore. To add documents, use Firebase Console or Admin SDK.')">
+                  <span class="fs-plus-sym">+</span> Add document
+                </button>
+              </div>
+              <div class="fs-items-list" id="fs-subcoll-docs-list">
+                <!-- Populated with documents of subcollection -->
+              </div>
+            </div>
+
+            <!-- Column 5: Subcollection Document Fields (e.g. default's fields) [Hidden in root mode, shown in subcoll mode] -->
+            <div class="fs-column fs-column-fields" id="col-subcoll-fields" style="display: none;">
+              <div class="fs-column-header">
+                <div class="fs-col-title-wrap">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                  <span class="fs-col-title" id="fs-subdoc-name">default</span>
+                </div>
+                <div class="fs-header-icons">
+                  <span title="Options">⋮</span>
+                </div>
+              </div>
+              <div class="fs-doc-details-scroll" id="fs-subdoc-fields-container">
+                <!-- Populated with sub-document fields -->
+              </div>
+            </div>
+          </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: CREATE BACKUP -->
+    <section class="tab-content" id="tab-backup">
+      <div class="card glass-card">
+        <div class="card-header">
+          <div>
+            <h2>Create a Real Live Backup</h2>
+            <p class="section-desc">Back up the active database (<span id="backup-active-proj-label" class="highlight-text">...</span>). Choose your preferred format below:</p>
+          </div>
+        </div>
+
+        <!-- Format Options -->
+        <div class="format-selection-grid">
+          <!-- Option 1: Recommended -->
+          <div class="format-card selected" id="fmt-card-jsonl-dr" onclick="selectFormat('jsonl-dr')">
+            <div class="format-tag-recommended">★ RECOMMENDED</div>
+            <div class="format-icon">⚡</div>
+            <h4>Full Accuracy Backup (.jsonl)</h4>
+            <p class="format-explanation">
+              <strong>Best choice for safety:</strong> Keeps exact dates, UTC timestamps, nulls, arrays, sub-items, and user links.
+            </p>
+            <div class="format-when">
+              <strong>Use when:</strong> You want a complete, 100% perfect copy that can restore your data with zero data loss.
+            </div>
+          </div>
+
+          <!-- Option 2: Human Readable -->
+          <div class="format-card" id="fmt-card-json-tree" onclick="selectFormat('json-tree')">
+            <div class="format-tag">EASY TO READ</div>
+            <div class="format-icon">📄</div>
+            <h4>Standard JSON File (.json)</h4>
+            <p class="format-explanation">
+              <strong>Best for reading:</strong> A neatly formatted text file that you can open in Notepad or VS Code.
+            </p>
+            <div class="format-when">
+              <strong>Use when:</strong> You want to inspect your documents manually or share with developers.
+            </div>
+          </div>
+
+          <!-- Option 3: Excel / CSV -->
+          <div class="format-card" id="fmt-card-csv-flat" onclick="selectFormat('csv-flat')">
+            <div class="format-tag">SPREADSHEETS</div>
+            <div class="format-icon">📊</div>
+            <h4>Excel / Sheets Tables (.csv)</h4>
+            <p class="format-explanation">
+              <strong>Best for spreadsheets:</strong> Saves your data in tables with columns and rows.
+            </p>
+            <div class="format-when">
+              <strong>Use when:</strong> You want to open collections in Microsoft Excel or Google Sheets.
+            </div>
+          </div>
+
+          <!-- Option 4: Encrypted -->
+          <div class="format-card" id="fmt-card-encrypted-dr" onclick="selectFormat('encrypted-dr')">
+            <div class="format-tag">PASSWORD PROTECTED</div>
+            <div class="format-icon">🔒</div>
+            <h4>Encrypted Backup (.enc)</h4>
+            <p class="format-explanation">
+              <strong>Best for security:</strong> Locks the whole backup with a secret password.
+            </p>
+            <div class="format-when">
+              <strong>Use when:</strong> You want to upload the backup to cloud storage or send it securely offsite.
+            </div>
+          </div>
+        </div>
+
+        <!-- Password input if encrypted is picked -->
+        <div class="form-row" id="passphrase-input-row" style="display: none;">
+          <div class="input-field">
+            <label for="input-backup-passphrase">Secret Password for Encryption</label>
+            <input type="password" id="input-backup-passphrase" placeholder="Enter a password to lock this backup (at least 8 characters)">
+          </div>
+        </div>
+
+        <div class="simple-checkbox-box">
+          <label class="custom-checkbox">
+            <input type="checkbox" id="check-pause-writes">
+            <span><strong>Pause new app writes during backup</strong> (Ensures no new data is being modified while backing up)</span>
+          </label>
+        </div>
+
+        <!-- Storage folder notice in Backup tab -->
+        <div class="storage-destination-notice" style="margin: 18px 0; padding: 12px 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-card); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+          <div style="font-size: 0.86rem; color: var(--text-main);">
+            📁 <strong>Storage Destination:</strong> Backups will be saved to <code id="backup-dest-folder-display" style="color: var(--accent-cyan); font-family: var(--font-mono);">...</code>
+          </div>
+          <button class="btn btn-secondary btn-sm" type="button" onclick="openStorageSettingsModal()">
+            Change Folder
+          </button>
+        </div>
+
+        <div class="action-bar">
+          <button class="btn btn-success" id="btn-run-backup" onclick="runBackup()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+            Start Backup Now
+          </button>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-panel" id="backup-progress-box" style="display: none;">
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill" id="backup-progress-bar"></div>
+          </div>
+          <div class="progress-log" id="backup-progress-text"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: SAVED BACKUPS -->
+    <section class="tab-content" id="tab-vault">
+      <div class="card glass-card">
+        <div class="card-header">
+          <div>
+            <h2>Saved Backups</h2>
+            <p class="section-desc">
+              All completed backups in <code id="vault-folder-display" style="color: var(--accent-cyan); font-family: var(--font-mono);">...</code>
+              <button class="btn btn-link btn-sm" style="margin-left: 8px; color: var(--accent-blue); text-decoration: underline; background: none; border: none; cursor: pointer;" type="button" onclick="openStorageSettingsModal()">Change Folder</button>
+            </p>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="loadSavedBackups()">
+            Refresh List
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="vault-table">
+            <thead>
+              <tr>
+                <th>Backup Name & Source Database</th>
+                <th>Date & Time</th>
+                <th>Total Documents</th>
+                <th>Formats Available</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="saved-backups-tbody">
+              <tr><td colspan="5" class="text-center">Loading backups...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Health Check Output Box -->
+      <div class="card glass-card" id="vault-health-panel" style="display: none; margin-top: 20px;">
+        <div class="card-header">
+          <div>
+            <h3 id="health-check-title">Backup Health Check</h3>
+            <p class="section-desc">Checking file integrity and making sure no data was changed or corrupted.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="closeHealthPanel()">Close</button>
+        </div>
+        <div class="audit-output" id="health-check-output"></div>
+      </div>
+
+      <!-- Direct Backup Content Viewer (Inspect inside backup file without preview tab) -->
+      <div class="card glass-card" id="vault-content-viewer" style="display: none; margin-top: 20px;">
+        <div class="card-header">
+          <div>
+            <h3 id="backup-viewer-title">Inspect Backup File Contents</h3>
+            <p class="section-desc">Browsing documents directly from the saved backup file on your computer.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="closeBackupViewer()">Close Viewer</button>
+        </div>
+
+        <!-- Authentic Sliding Multi-Column Firestore Console Layout for Backup File -->
+        <div class="firestore-console-wrapper" style="margin-top: 14px;">
+          <!-- Breadcrumbs bar -->
+          <div class="firestore-breadcrumbs" id="bv-firestore-breadcrumb-bar">
+            <span class="bc-home" style="cursor: pointer;" onclick="bvReloadTopLevelConsole()">📦 Backup:</span>
+            <span class="bc-doc" id="bv-backup-id" style="color: var(--accent-cyan);">...</span>
+            <span class="bc-sep">&gt;</span>
+            <span class="bc-collection" id="bv-bc-collection">...</span>
+            <span class="bc-sep">&gt;</span>
+            <span class="bc-doc" id="bv-bc-doc">...</span>
+          </div>
+
+          <!-- Sliding Multi-Column Layout -->
+          <div class="firestore-columns-grid" id="bv-firestore-columns-container">
+            <!-- Column 1: Root (default) collections (Hides when drilled into subcollection) -->
+            <div class="fs-column" id="bv-col-root-collections">
+              <div class="fs-column-header">
+                <div class="fs-col-title-wrap">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                  <span class="fs-col-title">(default)</span>
+                  <span class="fs-col-info-icon" title="Backup file root">ⓘ</span>
+                </div>
+              </div>
+              <div class="fs-col-action-bar">
+                <button class="fs-action-btn-inline" type="button" onclick="alert('Viewing saved backup file. This reflects saved point-in-time Firestore collections.')">
+                  <span class="fs-plus-sym">+</span> Start collection
+                </button>
+              </div>
+              <div class="fs-items-list" id="bv-collections-list">
+                <!-- Populated with backup collections -->
+              </div>
+            </div>
+
+            <!-- Column 2: Parent Collection Documents (e.g. users or conversations) -->
+            <div class="fs-column" id="bv-col-parent-documents">
+              <div class="fs-column-header">
+                <div class="fs-col-title-wrap">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <span class="fs-col-title" id="bv-active-coll-name">Select Collection</span>
+                </div>
+                <div class="fs-header-icons">
+                  <span title="Filter documents">≡</span>
+                  <span title="Options">⋮</span>
+                </div>
+              </div>
+              <div class="fs-col-action-bar">
+                <button class="fs-action-btn-inline" type="button" onclick="alert('Viewing saved backup file.')">
+                  <span class="fs-plus-sym">+</span> Add document
+                </button>
+              </div>
+              <div class="fs-items-list" id="bv-docs-list">
+                <!-- Populated with backup documents -->
+              </div>
+            </div>
+
+            <!-- Column 3: Parent Document (Subcollections + Fields) -->
+            <div class="fs-column fs-column-fields" id="bv-col-parent-doc-details">
+              <div class="fs-column-header">
+                <div class="fs-col-title-wrap">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                  <span class="fs-col-title" id="bv-active-doc-name">Select Document</span>
+                </div>
+                <div class="fs-header-icons">
+                  <span title="Options">⋮</span>
+                </div>
+              </div>
+              <div class="fs-doc-details-scroll" id="bv-fields-container">
+                <!-- Populated with subcollections list and fields -->
+              </div>
+            </div>
+
+            <!-- Column 4: Subcollection Documents (e.g. messages or settings) [Hidden in root mode, shown in subcoll mode] -->
+            <div class="fs-column fs-column-subcoll" id="bv-col-subcoll-docs" style="display: none;">
+              <div class="fs-column-header">
+                <div class="fs-col-title-wrap">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  <span class="fs-col-title" id="bv-subcoll-name">subcollection</span>
+                </div>
+                <div class="fs-header-icons">
+                  <span title="Filter">≡</span>
+                  <span title="Close subcollection view" style="cursor: pointer; padding: 0 4px;" onclick="bvExitSubcollectionMode()">✕</span>
+                </div>
+              </div>
+              <div class="fs-col-action-bar">
+                <button class="fs-action-btn-inline" type="button" onclick="alert('Viewing saved backup file.')">
+                  <span class="fs-plus-sym">+</span> Add document
+                </button>
+              </div>
+              <div class="fs-items-list" id="bv-subcoll-docs-list">
+                <!-- Populated with documents of subcollection -->
+              </div>
+            </div>
+
+            <!-- Column 5: Subcollection Document Fields [Hidden in root mode, shown in subcoll mode] -->
+            <div class="fs-column fs-column-fields" id="bv-col-subcoll-fields" style="display: none;">
+              <div class="fs-column-header">
+                <div class="fs-col-title-wrap">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                  <span class="fs-col-title" id="bv-subdoc-name">Select Document</span>
+                </div>
+                <div class="fs-header-icons">
+                  <span title="Options">⋮</span>
+                </div>
+              </div>
+              <div class="fs-doc-details-scroll" id="bv-subdoc-fields-container">
+                <!-- Populated with sub-document fields -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: RESTORE DATABASE -->
+    <section class="tab-content" id="tab-restore">
+      <div class="card glass-card">
+        <div class="card-header">
+          <div>
+            <h2>Restore or Clone a Database</h2>
+            <p class="section-desc">Restore any saved backup into an existing database or <strong>clone into a brand-new, completely empty Firestore database</strong>.</p>
+          </div>
+        </div>
+
+        <div class="simple-checkbox-box" style="margin-bottom: 20px; background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.25);">
+          <div style="font-size: 0.88rem; color: #fff; font-weight: 600; margin-bottom: 4px;"><span style="color: var(--accent-primary); margin-right: 6px;">⚡</span>Cloning to a Fresh Empty Database:</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">
+            If your target Firebase project is brand new with 0 collections and 0 documents, this tool will automatically construct every collection, document, and subcollection on the fly and remap all document references to the new project!
+          </div>
+        </div>
+
+        <!-- Storage folder notice in Restore tab -->
+        <div style="margin-bottom: 14px; padding: 10px 14px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-card); border-radius: 8px; font-size: 0.85rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <span>📁 Loading backup files from: <code id="restore-folder-display" style="color: var(--accent-cyan); font-family: var(--font-mono);">...</code></span>
+          <button class="btn btn-secondary btn-sm" type="button" onclick="openStorageSettingsModal()">Change Folder</button>
+        </div>
+
+        <div class="form-grid">
+          <div class="input-field">
+            <label for="restore-backup-picker">1. Select Backup File to Restore:</label>
+            <select id="restore-backup-picker" onchange="onRestoreBackupChange()">
+              <option value="">-- Choose a backup file --</option>
+            </select>
+            <div id="restore-latest-badge" style="margin-top: 6px; font-size: 0.78rem;"></div>
+          </div>
+
+          <div class="input-field">
+            <label for="restore-dest-picker">2. Select Destination Database:</label>
+            <select id="restore-dest-picker" onchange="onRestoreDestChange()">
+              <!-- Populated dynamically from saved projects -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Conflict Handling Strategy: Skip Existing, Overwrite, or Abort -->
+        <div class="restore-conflict-strategy-box" style="margin: 18px 0; padding: 16px; background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-card); border-radius: 10px;">
+          <div style="font-size: 0.9rem; font-weight: 600; color: #fff; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <span>🛡️</span> Conflict Handling (If documents already exist in destination):
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <!-- Option 1: Skip Existing (Recommended & default) -->
+            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+              <input type="radio" name="restore-conflict-mode" value="skip" id="radio-conflict-skip" checked style="margin-top: 3px; accent-color: var(--accent-cyan); cursor: pointer;">
+              <div>
+                <span style="color: #34d399; font-weight: 600; font-size: 0.9rem;">⚡ Skip existing documents (Recommended)</span>
+                <p style="margin: 3px 0 0; font-size: 0.8rem; color: var(--text-dim);">
+                  Do not overwrite documents that are already present. <strong>Only write documents that do NOT exist yet</strong> in the destination database.
+                </p>
+              </div>
+            </label>
+
+            <!-- Option 2: Overwrite Matching -->
+            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+              <input type="radio" name="restore-conflict-mode" value="overwrite" id="radio-conflict-overwrite" style="margin-top: 3px; accent-color: #f59e0b; cursor: pointer;">
+              <div>
+                <span style="color: #fbbf24; font-weight: 600; font-size: 0.9rem;">🔄 Overwrite matching documents</span>
+                <p style="margin: 3px 0 0; font-size: 0.8rem; color: var(--text-dim);">
+                  Replace existing documents with the backup file data even if they are already present.
+                </p>
+              </div>
+            </label>
+
+            <!-- Option 3: Safety Stop / Abort -->
+            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+              <input type="radio" name="restore-conflict-mode" value="abort" id="radio-conflict-abort" style="margin-top: 3px; accent-color: #f43f5e; cursor: pointer;">
+              <div>
+                <span style="color: #fda4af; font-weight: 600; font-size: 0.9rem;">🛑 Safety stop / Abort if any document exists</span>
+                <p style="margin: 3px 0 0; font-size: 0.8rem; color: var(--text-dim);">
+                  Halt immediately without writing anything if any matching document is found.
+                </p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="checkbox-row" style="margin: 18px 0;">
+          <label class="custom-checkbox">
+            <input type="checkbox" id="check-restore-confirm">
+            <span><strong>I confirm and authorize restoring to the selected destination database</strong></span>
+          </label>
+        </div>
+
+        <div class="action-bar">
+          <button class="btn btn-secondary" onclick="runRestoreAction(true)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            Test Restore (Safe Preview - writes nothing)
+          </button>
+          <button class="btn btn-primary" onclick="runCompareVerify()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Compare & Verify Restored Data
+          </button>
+          <button class="btn btn-danger" onclick="runRestoreAction(false)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Start Real Restore
+          </button>
+        </div>
+
+        <!-- Restore Output Log -->
+        <div class="progress-panel" id="restore-progress-box" style="display: none; margin-top: 20px;">
+          <div class="progress-log" id="restore-progress-text"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: CONNECT DATABASES -->
+    <section class="tab-content" id="tab-manage-projects">
+      <div class="card glass-card">
+        <div class="card-header">
+          <div>
+            <h2>Connect Your Real Firestore Databases</h2>
+            <p class="section-desc">Connect to your live Firebase projects (such as <code>novatalk-d6c58</code>, <code>eternalbloom-de253</code>, or any client project). No sample or mock data is used.</p>
+          </div>
+        </div>
+
+        <!-- Add Database Form -->
+        <div class="card-sub" style="margin-bottom: 24px;">
+          <h3 class="panel-subtitle">Add a Live Firebase Project</h3>
+          
+          <div class="form-row">
+            <div class="input-field">
+              <label for="new-proj-nickname">Database Name / Nickname</label>
+              <input type="text" id="new-proj-nickname" placeholder="e.g. NovaTalk, Production Store, Test DB">
+            </div>
+            <div class="input-field">
+              <label for="new-proj-id">Firebase Project ID (Optional - auto-detected from key)</label>
+              <input type="text" id="new-proj-id" placeholder="e.g. novatalk-d6c58">
+            </div>
+          </div>
+
+          <!-- Method 1: Local File Path -->
+          <div class="input-field" style="margin-bottom: 14px;">
+            <label for="new-proj-keypath">Method 1: Local File Path to Service Account JSON Key</label>
+            <input type="text" id="new-proj-keypath" placeholder="C:\Users\Shubh Tamrakar\Desktop\Firebase_Keys\novatalk-key.json">
+            <span class="field-hint">Enter the path where you saved your key file on your computer.</span>
+          </div>
+
+          <!-- Method 2: Paste JSON Directly -->
+          <div class="input-field" style="margin-bottom: 14px;">
+            <label for="new-proj-keyjson">Method 2: Or Paste Service Account Key JSON Content Directly</label>
+            <textarea id="new-proj-keyjson" rows="4" style="background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-card); border-radius: 8px; color: #fff; padding: 10px; font-family: var(--font-mono); font-size: 0.8rem;" placeholder='{"type": "service_account", "project_id": "novatalk-d6c58", ...}'></textarea>
+            <span class="field-hint">Read strictly by your local Node.js server; never sent to any third party.</span>
+          </div>
+
+          <div class="action-bar">
+            <button class="btn btn-primary" id="btn-save-database" onclick="addNewDatabase()">
+              Connect Database
+            </button>
+          </div>
+        </div>
+
+        <!-- Saved Databases List -->
+        <h3 class="panel-subtitle">Your Connected Databases</h3>
+        <div class="saved-projects-list" id="saved-projects-container">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </section>
+  <!-- Modal: Storage Folder Settings -->
+  <div class="modal-overlay" id="storage-settings-modal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 1.5rem;">📁</span>
+          <div>
+            <h3 style="margin: 0; color: #fff; font-size: 1.15rem;">Backup & Restore Storage Folder</h3>
+            <p class="section-desc" style="margin: 4px 0 0; font-size: 0.82rem;">Configure where backup files are stored and restored from on this computer or server.</p>
+          </div>
+        </div>
+        <button class="btn-close" type="button" onclick="closeStorageSettingsModal()">×</button>
+      </div>
+
+      <div class="modal-body" style="padding: 20px 0;">
+        <div class="input-field">
+          <label for="input-storage-folder-path">Folder Path on this Computer / Server:</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="input-storage-folder-path" placeholder="e.g. C:\Backups\Firestore or /var/backups/firestore" style="flex: 1; font-family: var(--font-mono); font-size: 0.88rem;">
+            <input type="file" id="native-folder-picker" webkitdirectory directory multiple style="display: none;" onchange="onNativeFolderSelected(event)">
+            <button class="btn btn-secondary" type="button" onclick="document.getElementById('native-folder-picker').click()" title="Select folder using system file browser">
+              📂 Browse...
+            </button>
+          </div>
+          <small class="field-hint" style="margin-top: 8px; display: block; color: var(--text-dim); font-size: 0.78rem;">
+            Enter any path on your machine (local drive, external storage, network mount, or production server volume). The system will automatically ensure the directory exists and has write permissions.
+          </small>
+        </div>
+
+        <div id="storage-folder-status" style="margin-top: 14px; font-size: 0.85rem; display: none;"></div>
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid var(--border-card);">
+        <button class="btn btn-secondary btn-sm" type="button" onclick="resetStorageFolderToDefault()">
+          ↺ Reset to Default
+        </button>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-secondary btn-sm" type="button" onclick="closeStorageSettingsModal()">Cancel</button>
+          <button class="btn btn-primary btn-sm" type="button" id="btn-save-storage-folder" onclick="saveStorageFolder()">
+            Save Storage Folder
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
