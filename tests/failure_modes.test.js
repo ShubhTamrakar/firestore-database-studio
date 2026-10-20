@@ -9,7 +9,7 @@ import { IndependentVerifier } from '../src/verifier.js';
 import { MockFirestore } from './mock_firestore.js';
 
 test('Failure Mode: Permission Denied aborts immediately and never treats inaccessible collections as empty', async () => {
-  const mockDb = new MockFirestore('eternalbloom-de253');
+  const mockDb = new MockFirestore('project-alpha');
   // Mock permission error on listCollections
   mockDb.listCollections = async () => {
     const err = new Error('Missing or insufficient permissions');
@@ -19,7 +19,7 @@ test('Failure Mode: Permission Denied aborts immediately and never treats inacce
 
   const exporter = new FirestoreExporter(mockDb, {
     backupRoot: os.tmpdir(),
-    sourceProjectId: 'eternalbloom-de253'
+    sourceProjectId: 'project-alpha'
   });
 
   await assert.rejects(
@@ -56,7 +56,7 @@ test('Failure Mode: Quota Exhausted aborts safely without infinite retry loop', 
 
 test('Failure Mode: Process crash / unfinalized staging directory is never marked valid', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'dr_crash_test_'));
-  const incompleteBackupDir = path.join(tempDir, 'backup_eternalbloom-de253_crashed');
+  const incompleteBackupDir = path.join(tempDir, 'backup_project-alpha_crashed');
   await fs.mkdir(incompleteBackupDir, { recursive: true });
 
   // Missing manifest.json

@@ -13,8 +13,8 @@ test('Full DR Lifecycle: Export, Tampering Detection, Safety Guards, Dry Run, Re
   const tempTestDir = await fs.mkdtemp(path.join(os.tmpdir(), 'dr_test_'));
 
   // 1. Populate rich synthetic database
-  const sourceDb = new MockFirestore('eternalbloom-de253');
-  const destDb = new MockFirestore('novatalk-d6c58');
+  const sourceDb = new MockFirestore('project-alpha');
+  const destDb = new MockFirestore('project-beta');
 
   // Categories
   sourceDb._setDocDirect('categories/cat_electronics', {
@@ -65,7 +65,7 @@ test('Full DR Lifecycle: Export, Tampering Detection, Safety Guards, Dry Run, Re
     backupRoot: tempTestDir,
     batchSize: 2, // force multiple batch pages
     consistencyClassification: 'CONSISTENT_FREEZE_VERIFIED',
-    sourceProjectId: 'eternalbloom-de253'
+    sourceProjectId: 'project-alpha'
   });
 
   const exportResult = await exporter.runExport();
@@ -102,7 +102,7 @@ test('Full DR Lifecycle: Export, Tampering Detection, Safety Guards, Dry Run, Re
   }, /Please select or specify a destination project/);
 
   // 7. Test Dry Run Restoration
-  const dryRestorer = new FirestoreRestorer(destDb, 'novatalk-d6c58', {
+  const dryRestorer = new FirestoreRestorer(destDb, 'project-beta', {
     dryRun: true,
     ledgerDir: path.join(tempTestDir, 'ledgers')
   });
@@ -118,8 +118,9 @@ test('Full DR Lifecycle: Export, Tampering Detection, Safety Guards, Dry Run, Re
   // Artificially plant a document in destination
   destDb._setDocDirect('categories/cat_electronics', { conflict: 'existing_data' });
 
-  const safeRestorer = new FirestoreRestorer(destDb, 'novatalk-d6c58', {
+  const safeRestorer = new FirestoreRestorer(destDb, 'project-beta', {
     dryRun: false,
+    conflictMode: 'abort',
     allowOverwrite: false,
     ledgerDir: path.join(tempTestDir, 'ledgers')
   });
@@ -130,7 +131,7 @@ test('Full DR Lifecycle: Export, Tampering Detection, Safety Guards, Dry Run, Re
   );
 
   // 9. Execute Real Bounded-Batch Restoration with Overwrite Allowed
-  const activeRestorer = new FirestoreRestorer(destDb, 'novatalk-d6c58', {
+  const activeRestorer = new FirestoreRestorer(destDb, 'project-beta', {
     dryRun: false,
     allowOverwrite: true,
     batchSize: 2, // test multi-batch commits

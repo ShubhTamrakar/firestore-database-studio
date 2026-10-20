@@ -83,15 +83,15 @@ test('Serializer: preserves Bytes / Buffer', () => {
 });
 
 test('Serializer: preserves DocumentReferences and supports project remapping', () => {
-  const sourceDb = new MockFirestore('eternalbloom-de253');
-  const targetDb = new MockFirestore('novatalk-d6c58');
+  const sourceDb = new MockFirestore('project-alpha');
+  const targetDb = new MockFirestore('project-beta');
   const ref = new MockDocumentReference('categories/electronics', sourceDb);
   const doc = { categoryRef: ref };
 
   const serialized = serializeFirestoreValue(doc);
   assert.equal(serialized.categoryRef.__fs_type__, 'DocumentReference');
   assert.equal(serialized.categoryRef.path, 'categories/electronics');
-  assert.equal(serialized.categoryRef.projectId, 'eternalbloom-de253');
+  assert.equal(serialized.categoryRef.projectId, 'project-alpha');
 
   // Deserialize without remapping: retains path
   const deserializedNoRemap = deserializeFirestoreValue(serialized, sourceDb);
@@ -100,7 +100,7 @@ test('Serializer: preserves DocumentReferences and supports project remapping', 
   // Deserialize with remapping to destination DB
   const deserializedRemap = deserializeFirestoreValue(serialized, targetDb, { remapProject: true });
   assert.equal(deserializedRemap.categoryRef.path, 'categories/electronics');
-  assert.equal(deserializedRemap.categoryRef.firestore.projectId, 'novatalk-d6c58');
+  assert.equal(deserializedRemap.categoryRef.firestore.projectId, 'project-beta');
 });
 
 test('Serializer: rejects unsupported arbitrary classes to avoid silent coercion', () => {

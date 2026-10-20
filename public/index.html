@@ -624,7 +624,7 @@
         <div class="card-header">
           <div>
             <h2>Connect Your Real Firestore Databases</h2>
-            <p class="section-desc">Connect to your live Firebase projects (such as <code>novatalk-d6c58</code>, <code>eternalbloom-de253</code>, or any client project). No sample or mock data is used.</p>
+            <p class="section-desc">Connect to your live Firebase projects using your Service Account credentials. No sample or mock data is used.</p>
           </div>
         </div>
 
@@ -635,25 +635,25 @@
           <div class="form-row">
             <div class="input-field">
               <label for="new-proj-nickname">Database Name / Nickname</label>
-              <input type="text" id="new-proj-nickname" placeholder="e.g. NovaTalk, Production Store, Test DB">
+              <input type="text" id="new-proj-nickname" placeholder="e.g. Production Store, Analytics DB, Staging App">
             </div>
             <div class="input-field">
               <label for="new-proj-id">Firebase Project ID (Optional - auto-detected from key)</label>
-              <input type="text" id="new-proj-id" placeholder="e.g. novatalk-d6c58">
+              <input type="text" id="new-proj-id" placeholder="e.g. my-firebase-app-12345">
             </div>
           </div>
 
           <!-- Method 1: Local File Path -->
           <div class="input-field" style="margin-bottom: 14px;">
             <label for="new-proj-keypath">Method 1: Local File Path to Service Account JSON Key</label>
-            <input type="text" id="new-proj-keypath" placeholder="C:\Users\Shubh Tamrakar\Desktop\Firebase_Keys\novatalk-key.json">
+            <input type="text" id="new-proj-keypath" placeholder="C:\path\to\serviceAccountKey.json or /home/user/serviceAccountKey.json">
             <span class="field-hint">Enter the path where you saved your key file on your computer.</span>
           </div>
 
           <!-- Method 2: Paste JSON Directly -->
           <div class="input-field" style="margin-bottom: 14px;">
             <label for="new-proj-keyjson">Method 2: Or Paste Service Account Key JSON Content Directly</label>
-            <textarea id="new-proj-keyjson" rows="4" style="background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-card); border-radius: 8px; color: #fff; padding: 10px; font-family: var(--font-mono); font-size: 0.8rem;" placeholder='{"type": "service_account", "project_id": "novatalk-d6c58", ...}'></textarea>
+            <textarea id="new-proj-keyjson" rows="4" style="background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-card); border-radius: 8px; color: #fff; padding: 10px; font-family: var(--font-mono); font-size: 0.8rem;" placeholder='{"type": "service_account", "project_id": "my-firebase-app-12345", ...}'></textarea>
             <span class="field-hint">Read strictly by your local Node.js server; never sent to any third party.</span>
           </div>
 

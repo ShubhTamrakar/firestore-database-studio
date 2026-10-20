@@ -20,11 +20,11 @@ This guide provides step-by-step instructions for taking your Firestore Database
 
 1. **Sign in to Render**:
    - Visit [render.com](https://render.com).
-   - Click **Sign In** and choose **GitHub** (using your `ShubhTamrakar` account).
+   - Click **Sign In** and choose **GitHub** (using your GitHub account).
 
 2. **Create a New Web Service**:
    - In your Render Dashboard, click **New +** at the top right and select **Web Service**.
-   - Under **Connect a repository**, find and select `ShubhTamrakar/firestore-database-studio`.
+   - Under **Connect a repository**, find and select your `firestore-database-studio` repository.
    - *(If the repository does not appear, click "Configure GitHub App" to grant Render access to your repository).*
 
 3. **Configure the Web Service**:
@@ -42,7 +42,7 @@ This guide provides step-by-step instructions for taking your Firestore Database
    - Scroll down and click **Create Web Service**.
    - Render will automatically clone the repository, install dependencies, and launch `node server.js`.
    - When the log displays `[REAL FIRESTORE BACKUP APP] Running at http://localhost:...`, your app is live!
-   - Your live link will be shown at the top (e.g., `https://firestore-database-studio.onrender.com`).
+   - Your live link will be shown at the top (e.g., `https://your-service-name.onrender.com`).
 
 ---
 
@@ -59,7 +59,7 @@ If you prefer hosting the user interface on Cloudflare's global edge network via
    - Select the **Pages** tab and click **Connect to Git**.
 3. **Select Repository**:
    - Authorize Cloudflare to access your GitHub account.
-   - Select `ShubhTamrakar/firestore-database-studio` and click **Begin setup**.
+   - Select your `firestore-database-studio` repository and click **Begin setup**.
 4. **Configure Build Settings**:
    * **Project name**: `firestore-database-studio`
    * **Production branch**: `main`
@@ -68,7 +68,7 @@ If you prefer hosting the user interface on Cloudflare's global edge network via
    * **Build output directory**: `public`
 5. **Deploy**:
    - Click **Save and Deploy**.
-   - Cloudflare Pages will serve your UI on a fast CDN URL (e.g. `https://firestore-database-studio.pages.dev`).
+   - Cloudflare Pages will serve your UI on a fast CDN URL (e.g. `https://your-project-name.pages.dev`).
 
 ### Part B: Connect Cloudflare Pages to Your Render Backend
 
@@ -76,11 +76,11 @@ Because Cloudflare Pages only hosts static files, API calls (such as `/api/backu
 
 1. **Get Your Render Backend URL**:
    - Follow Method 1 above to deploy `server.js` on Render.
-   - Copy your Render app URL (e.g., `https://firestore-database-studio.onrender.com`).
+   - Copy your Render app URL (e.g., `https://your-service-name.onrender.com`).
 2. **Add a Redirect/Proxy Rule in Cloudflare**:
    - In your project's `public/` folder, a `_redirects` file can forward all `/api/*` calls to your Render backend:
      ```text
-     /api/*  https://firestore-database-studio.onrender.com/api/:splat  200
+     /api/*  https://your-service-name.onrender.com/api/:splat  200
      ```
    - This keeps your frontend on Cloudflare Pages while routing all backend calls to Render seamlessly with no CORS issues.
 
@@ -110,4 +110,4 @@ If you want the database backups stored directly on your physical computer while
    - `.gitignore` is configured to never commit `.json` files or private keys to your public GitHub repository.
    - When deploying to Render, upload your service account files through the app's **Connect Databases** UI tab or store them securely.
 2. **Repository URL**:
-   - [https://github.com/ShubhTamrakar/firestore-database-studio](https://github.com/ShubhTamrakar/firestore-database-studio)
+   - `https://github.com/<your-username>/firestore-database-studio`
