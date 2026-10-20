@@ -894,6 +894,28 @@ async function runBackup() {
     progressText.innerHTML += `Saved to: <code>${data.backupPath}</code><br>`;
     progressText.innerHTML += `Total Live Documents: <strong>${liveDocCount}</strong><br>`;
 
+    const downloadUrl = `/api/backups/download/${data.backupId}`;
+    progressText.innerHTML += `
+      <div style="margin-top: 14px; padding: 12px 16px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px;">
+        <div style="font-weight: 600; color: #fff; margin-bottom: 6px; font-size: 0.92rem;">💾 Save Directly to Your Laptop / Computer:</div>
+        <div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 10px;">Your backup is ready. Download the complete file directly to your local computer:</div>
+        <a href="${downloadUrl}" class="btn btn-primary btn-sm" style="text-decoration:none; display: inline-flex; align-items:center; gap:6px;" download="${data.backupId}.jsonl">
+          <span>⬇️</span> Download Backup to My Computer (.jsonl)
+        </a>
+      </div>
+    `;
+
+    // Automatically prompt browser download to user's computer
+    try {
+      const autoLink = document.createElement('a');
+      autoLink.href = downloadUrl;
+      autoLink.download = `${data.backupId}.jsonl`;
+      document.body.appendChild(autoLink);
+      autoLink.click();
+      document.body.removeChild(autoLink);
+      progressText.innerHTML += `<span style="color: #38bdf8; font-size: 0.8rem; margin-top: 6px; display: block;">⚡ Automatic download prompted in your browser!</span>`;
+    } catch (_) {}
+
     await loadSavedBackups();
   } catch (err) {
     progressText.innerHTML += `<span style="color: #fda4af;">Network error: ${err.message}</span><br>`;
@@ -940,7 +962,10 @@ function renderSavedBackupsTable(backups) {
         <td><strong>${docCount}</strong></td>
         <td>${formatPills}</td>
         <td>
-          <div style="display: flex; gap: 6px;">
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <a href="/api/backups/download/${b.id}" class="btn btn-secondary btn-sm" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px;" download="${b.id}.jsonl" title="Save backup to your laptop">
+              <span>⬇️</span> Download
+            </a>
             <button class="btn btn-primary btn-sm" onclick="inspectBackupFile('${b.path.replace(/\\/g, '\\\\')}', '${b.id}')">
               Inspect Data
             </button>
@@ -1675,3 +1700,95 @@ async function resetStorageFolderToDefault() {
     alert('Failed to reset storage directory: ' + err.message);
   }
 }
+
+// 7. Laptop / Local Computer File Bridge (for Cloud & Render deployments)
+async function handleRestoreLocalFilePicked(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById('restore-local-file-status');
+  statusEl.style.display = 'block';
+  statusEl.innerHTML = `<span style="color: var(--accent-cyan);">⏳ Reading local file <strong>${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB) and preparing restore session...</span>`;
+
+  try {
+    const content = await file.text();
+    const res = await fetch('/api/backups/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: file.name,
+        content: content,
+        sourceProject: 'local-laptop'
+      })
+    });
+
+    const data = await res.json();
+    if (!data.success) {
+      statusEl.innerHTML = `<span style="color: var(--accent-rose);">❌ Failed to load local backup: ${data.error}</span>`;
+      return;
+    }
+
+    statusEl.innerHTML = `
+      <div style="color: #34d399; font-weight: 600; padding: 8px 12px; background: rgba(16, 185, 129, 0.1); border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);">
+        ✅ Loaded from your laptop: <code>${file.name}</code> (${data.documentCount} documents ready to restore!)
+      </div>
+    `;
+
+    await loadSavedBackups();
+
+    // Automatically select the uploaded backup in the restore dropdown
+    const select = document.getElementById('restore-backup-picker');
+    if (select && data.backupPath) {
+      select.value = data.backupPath;
+      onRestoreBackupChange();
+    }
+  } catch (err) {
+    statusEl.innerHTML = `<span style="color: var(--accent-rose);">❌ Error reading file: ${err.message}</span>`;
+  } finally {
+    event.target.value = '';
+  }
+}
+
+async function handleVaultFileUploaded(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const statusMsg = document.createElement('div');
+  statusMsg.style.cssText = 'position:fixed; bottom:20px; right:20px; background:#1e293b; color:#fff; border:1px solid #38bdf8; padding:12px 18px; border-radius:8px; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,0.5); font-size:0.88rem;';
+  statusMsg.innerHTML = `⏳ Uploading <strong>${file.name}</strong> from your laptop...`;
+  document.body.appendChild(statusMsg);
+
+  try {
+    const content = await file.text();
+    const res = await fetch('/api/backups/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: file.name,
+        content: content,
+        sourceProject: 'local-laptop'
+      })
+    });
+
+    const data = await res.json();
+    if (!data.success) {
+      statusMsg.style.borderColor = '#f43f5e';
+      statusMsg.innerHTML = `❌ Upload failed: ${data.error}`;
+      setTimeout(() => statusMsg.remove(), 4000);
+      return;
+    }
+
+    statusMsg.style.borderColor = '#10b981';
+    statusMsg.innerHTML = `✅ Successfully imported <strong>${file.name}</strong> (${data.documentCount} documents)!`;
+    setTimeout(() => statusMsg.remove(), 3500);
+
+    await loadSavedBackups();
+  } catch (err) {
+    statusMsg.style.borderColor = '#f43f5e';
+    statusMsg.innerHTML = `❌ Error: ${err.message}`;
+    setTimeout(() => statusMsg.remove(), 4000);
+  } finally {
+    event.target.value = '';
+  }
+}
+

@@ -349,9 +349,15 @@
               <button class="btn btn-link btn-sm" style="margin-left: 8px; color: var(--accent-blue); text-decoration: underline; background: none; border: none; cursor: pointer;" type="button" onclick="openStorageSettingsModal()">Change Folder</button>
             </p>
           </div>
-          <button class="btn btn-secondary btn-sm" onclick="loadSavedBackups()">
-            Refresh List
-          </button>
+          <div style="display: flex; gap: 8px;">
+            <input type="file" id="vault-upload-input" accept=".jsonl,.json" style="display: none;" onchange="handleVaultFileUploaded(event)">
+            <button class="btn btn-secondary btn-sm" type="button" onclick="document.getElementById('vault-upload-input').click()" title="Import a backup file from your laptop">
+              ⬆️ Upload from Laptop
+            </button>
+            <button class="btn btn-secondary btn-sm" type="button" onclick="loadSavedBackups()">
+              Refresh List
+            </button>
+          </div>
         </div>
 
         <div class="table-responsive">
@@ -528,6 +534,27 @@
         <div style="margin-bottom: 14px; padding: 10px 14px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-card); border-radius: 8px; font-size: 0.85rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
           <span>📁 Loading backup files from: <code id="restore-folder-display" style="color: var(--accent-cyan); font-family: var(--font-mono);">...</code></span>
           <button class="btn btn-secondary btn-sm" type="button" onclick="openStorageSettingsModal()">Change Folder</button>
+        </div>
+
+        <!-- Option to select backup directly from laptop -->
+        <div class="local-restore-card" style="margin-bottom: 18px; padding: 14px 18px; background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(99, 102, 241, 0.08)); border: 1px dashed rgba(56, 189, 248, 0.4); border-radius: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <div style="font-weight: 600; color: #fff; font-size: 0.92rem; display: flex; align-items: center; gap: 6px;">
+                <span>💻</span> <strong>Restore from My Computer / Laptop</strong>
+              </div>
+              <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 2px;">
+                Select any backup file (<code>.jsonl</code> or <code>.json</code>) stored on your local drive to restore into your database.
+              </div>
+            </div>
+            <div>
+              <input type="file" id="restore-local-file-input" accept=".jsonl,.json" style="display:none;" onchange="handleRestoreLocalFilePicked(event)">
+              <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('restore-local-file-input').click()" style="display: inline-flex; align-items: center; gap: 6px;">
+                <span>📂</span> Select Backup from Laptop...
+              </button>
+            </div>
+          </div>
+          <div id="restore-local-file-status" style="margin-top: 10px; font-size: 0.84rem; display: none;"></div>
         </div>
 
         <div class="form-grid">

@@ -15,6 +15,8 @@ import { exportToJsonTree, exportToCsv, exportToEncryptedBundle } from './src/fo
 
 import { getFirestore } from 'firebase-admin/firestore';
 
+import { computeCanonicalDocumentHash, serializeFirestoreValue } from './src/serializer.js';
+
 import os from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -22,7 +24,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '150mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Favicon handler to prevent 404
@@ -462,6 +464,172 @@ app.get('/api/backups', async (req, res) => {
     res.json({ success: true, count: backups.length, backups, activeBackupDirectory: activeBackupRoot });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// 4b. Download Backup File Directly to User's Local Machine
+app.get('/api/backups/download/:backupId', async (req, res) => {
+  try {
+    const { backupId } = req.params;
+    const activeBackupRoot = await getActiveBackupDirectory();
+    const backupDir = path.join(activeBackupRoot, backupId);
+
+    try {
+      await fs.access(backupDir);
+    } catch (_) {
+      return res.status(404).json({ error: `Backup '${backupId}' not found on server.` });
+    }
+
+    const dataDir = path.join(backupDir, 'data');
+    let files = [];
+    try {
+      files = await fs.readdir(dataDir);
+    } catch (_) {}
+
+    const jsonlFile = files.find(f => f.endsWith('.jsonl'));
+    if (jsonlFile) {
+      const fullPath = path.join(dataDir, jsonlFile);
+      res.setHeader('Content-Disposition', `attachment; filename="${backupId}.jsonl"`);
+      res.setHeader('Content-Type', 'application/x-ndjson');
+      return fsSync.createReadStream(fullPath).pipe(res);
+    }
+
+    const rootFiles = await fs.readdir(backupDir);
+    const jsonFile = rootFiles.find(f => f.endsWith('.json') && f !== 'manifest.json');
+    if (jsonFile) {
+      const fullPath = path.join(backupDir, jsonFile);
+      res.setHeader('Content-Disposition', `attachment; filename="${jsonFile}"`);
+      res.setHeader('Content-Type', 'application/json');
+      return fsSync.createReadStream(fullPath).pipe(res);
+    }
+
+    const manifestPath = path.join(backupDir, 'manifest.json');
+    res.setHeader('Content-Disposition', `attachment; filename="${backupId}_manifest.json"`);
+    res.setHeader('Content-Type', 'application/json');
+    return fsSync.createReadStream(manifestPath).pipe(res);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 4c. Upload Backup File from User's Local Computer (for Restore or Inspection)
+app.post('/api/backups/upload', async (req, res) => {
+  try {
+    const { fileName, content, sourceProject } = req.body;
+    if (!content) {
+      return res.status(400).json({ error: 'No backup file content provided.' });
+    }
+
+    const activeBackupRoot = await getActiveBackupDirectory();
+    await fs.mkdir(activeBackupRoot, { recursive: true });
+
+    const cleanName = (fileName || 'local_backup').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const backupId = `laptop_${cleanName}_${Date.now()}`;
+    const backupDir = path.join(activeBackupRoot, backupId);
+    const dataDir = path.join(backupDir, 'data');
+
+    await fs.mkdir(dataDir, { recursive: true });
+
+    let rawRecords = [];
+    const trimmed = content.trim();
+
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsedArr = JSON.parse(trimmed);
+        if (Array.isArray(parsedArr)) {
+          rawRecords = parsedArr;
+        }
+      } catch (_) {}
+    }
+
+    if (rawRecords.length === 0) {
+      const rawLines = trimmed.split('\n').filter(l => l.trim().length > 0);
+      for (let i = 0; i < rawLines.length; i++) {
+        try {
+          const parsed = JSON.parse(rawLines[i]);
+          rawRecords.push(parsed);
+        } catch (_) {}
+      }
+    }
+
+    if (rawRecords.length === 0) {
+      return res.status(400).json({ error: 'The uploaded file does not contain valid JSON or JSONL Firestore records.' });
+    }
+
+    const normalizedLines = [];
+    const docHashes = {};
+    const collectionsSet = new Set();
+
+    for (let i = 0; i < rawRecords.length; i++) {
+      const raw = rawRecords[i];
+      const docPath = raw.path || (raw.id ? `imported_collection/${raw.id}` : `imported_collection/doc_${i + 1}`);
+      const docId = raw.id || docPath.split('/').pop();
+      const docData = raw.data !== undefined ? raw.data : (raw.fields || raw);
+
+      const segments = docPath.split('/');
+      if (segments.length >= 2) {
+        collectionsSet.add(segments[0]);
+      }
+
+      const canonicalHash = computeCanonicalDocumentHash(docPath, docData);
+      const record = {
+        path: docPath,
+        id: docId,
+        data: docData,
+        canonicalHash: canonicalHash,
+        exportedAt: raw.exportedAt || new Date().toISOString()
+      };
+
+      docHashes[docPath] = canonicalHash;
+      normalizedLines.push(JSON.stringify(record));
+    }
+
+    const outputContent = normalizedLines.join('\n') + '\n';
+    const dataFilePath = path.join(dataDir, 'data.jsonl');
+    await fs.writeFile(dataFilePath, outputContent, 'utf8');
+
+    const crypto = await import('crypto');
+    const fileHash = crypto.createHash('sha256').update(outputContent, 'utf8').digest('hex');
+    const fileBytes = Buffer.byteLength(outputContent, 'utf8');
+
+    const manifestData = {
+      schemaVersion: '2.0-universal',
+      toolVersion: '2.0.0',
+      backupId: backupId,
+      sourceProject: sourceProject || 'user-laptop',
+      sourceDatabase: '(default)',
+      startedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      consistencyClassification: 'CONSISTENT_FREEZE_VERIFIED',
+      consistencyDetails: 'Imported from user laptop/computer local storage.',
+      totalDocuments: normalizedLines.length,
+      files: {
+        'data/data.jsonl': {
+          sha256: fileHash,
+          sizeBytes: fileBytes,
+          bytes: fileBytes,
+          docCount: normalizedLines.length,
+          documentCount: normalizedLines.length
+        }
+      },
+      documentHashes: docHashes,
+      stats: {
+        totalDocuments: normalizedLines.length,
+        totalCollections: collectionsSet.size || 1
+      }
+    };
+
+    await fs.writeFile(path.join(backupDir, 'manifest.json'), JSON.stringify(manifestData, null, 2), 'utf8');
+
+    res.json({
+      success: true,
+      backupId,
+      backupPath: backupDir,
+      documentCount: normalizedLines.length,
+      manifest: manifestData
+    });
+  } catch (err) {
+    res.status(500).json({ error: `Upload failed: ${err.message}` });
   }
 });
 
