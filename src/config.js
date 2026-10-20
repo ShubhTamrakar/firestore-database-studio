@@ -8,7 +8,11 @@ export const CONFIG = {
   MAX_RETRY_ATTEMPTS: 5,
   INITIAL_RETRY_DELAY_MS: 1000,
   // Dedicated local folder on computer for storing backups
-  DEFAULT_BACKUP_ROOT: process.env.FIRESTORE_BACKUP_DIR || path.join(os.homedir(), 'Desktop', 'Firestore_Backups')
+  DEFAULT_BACKUP_ROOT: process.env.FIRESTORE_BACKUP_DIR || (
+    process.platform === 'win32'
+      ? path.join(os.homedir(), 'Desktop', 'Firestore_Backups')
+      : path.join(process.cwd(), 'Firestore_Backups')
+  )
 };
 
 /**

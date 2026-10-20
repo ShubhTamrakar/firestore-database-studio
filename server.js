@@ -45,7 +45,11 @@ async function saveAppSettings(settings) {
   await fs.writeFile(SETTINGS_CONFIG_FILE, JSON.stringify(settings, null, 2), 'utf8');
 }
 
-const BASE_DEFAULT_BACKUP_ROOT = process.env.FIRESTORE_BACKUP_DIR || path.join(os.homedir(), 'Desktop', 'Firestore_Backups');
+const BASE_DEFAULT_BACKUP_ROOT = process.env.FIRESTORE_BACKUP_DIR || (
+  process.platform === 'win32'
+    ? path.join(os.homedir(), 'Desktop', 'Firestore_Backups')
+    : path.join(__dirname, 'Firestore_Backups')
+);
 
 // Retrieve the active storage directory for backups & restores
 async function getActiveBackupDirectory() {
