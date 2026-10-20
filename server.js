@@ -523,6 +523,40 @@ app.get('/api/backups/download/:backupId', async (req, res) => {
   }
 });
 
+// 4b-2. Delete / Purge Backup from Server (Zero-cloud-storage mode for sensitive data)
+app.delete('/api/backups/:backupId', async (req, res) => {
+  try {
+    const { backupId } = req.params;
+    const activeBackupRoot = await getActiveBackupDirectory();
+    const backupDir = path.join(activeBackupRoot, backupId);
+
+    try {
+      await fs.rm(backupDir, { recursive: true, force: true });
+      res.json({ success: true, message: `Backup '${backupId}' purged from server storage.` });
+    } catch (err) {
+      res.status(500).json({ error: `Failed to delete backup: ${err.message}` });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Purge all backups from server
+app.delete('/api/backups', async (req, res) => {
+  try {
+    const activeBackupRoot = await getActiveBackupDirectory();
+    const entries = await fs.readdir(activeBackupRoot, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        await fs.rm(path.join(activeBackupRoot, entry.name), { recursive: true, force: true });
+      }
+    }
+    res.json({ success: true, message: 'All backups purged from server.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 4c. Upload Backup File from User's Local Computer (for Restore or Inspection)
 app.post('/api/backups/upload', async (req, res) => {
   try {

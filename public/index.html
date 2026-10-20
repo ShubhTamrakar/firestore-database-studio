@@ -713,8 +713,26 @@
       </div>
 
       <div class="modal-body" style="padding: 20px 0;">
+        <!-- Option 1: Native Laptop Folder via Browser API (100% Private, Zero Cloud Storage) -->
+        <div style="margin-bottom: 20px; padding: 14px 16px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(6, 182, 212, 0.1)); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 8px;">
+          <div style="font-weight: 600; color: #34d399; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span>💻</span> Connect Folder on My Laptop (100% Private)
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-dim); margin: 0 0 10px 0;">
+            Select a folder on your computer (such as <code>Firestore_Backups</code> on your Desktop). Backups save directly into your laptop, and are instantly purged from Render cloud storage so no one can ever see them online.
+          </p>
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-primary btn-sm" type="button" onclick="linkLocalComputerFolder()" style="display: inline-flex; align-items: center; gap: 6px;">
+              <span>📁</span> Choose Folder on My Computer...
+            </button>
+            <span id="linked-laptop-folder-badge" style="font-size: 0.82rem; color: #38bdf8; font-weight: 600;"></span>
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid var(--border-card); margin-bottom: 16px;"></div>
+
         <div class="input-field">
-          <label for="input-storage-folder-path">Folder Path on this Computer / Server:</label>
+          <label for="input-storage-folder-path">Or Set Server Local Path (When running on localhost):</label>
           <div style="display: flex; gap: 8px;">
             <input type="text" id="input-storage-folder-path" placeholder="e.g. C:\Backups\Firestore or /var/backups/firestore" style="flex: 1; font-family: var(--font-mono); font-size: 0.88rem;">
             <input type="file" id="native-folder-picker" webkitdirectory directory multiple style="display: none;" onchange="onNativeFolderSelected(event)">
@@ -723,7 +741,7 @@
             </button>
           </div>
           <small class="field-hint" style="margin-top: 8px; display: block; color: var(--text-dim); font-size: 0.78rem;">
-            Enter any path on your machine (local drive, external storage, network mount, or production server volume). The system will automatically ensure the directory exists and has write permissions.
+            Enter any path on your machine when running locally on your laptop. On Render, use the "Connect Folder on My Laptop" button above.
           </small>
         </div>
 
